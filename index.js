@@ -1,75 +1,48 @@
-const mqtt = require('mqtt');
+const mqtt = require("mqtt");
 
-
-const host = 'broker.emqx.io';
-const port = '1883'
-const clientIdOne = "70"
-const clientIdTwo = "80"
-
-
-const connectionURI = `mqtt://${host}:${port}`;
-
-
-const clientOne = mqtt.connect(connectionURI, {
-    clientIdOne,
-    clean: true,
-    connectTimeout: 4000,
-    username: 'emqx',
-    password: 'public',
-    reconnectPeriod: 1000
+const clientOne = mqtt.connect("mqtt://localhost:22222", {
+  // clientId: `mqtt__${Math.random().toString(16).substring(2, 8)}`,
+  clientId: "",
+  clean: false, // non-peristent sessions
+  reconnectPeriod: 100,
+  connectTimeout: 4000,
 });
 
-const clientTwo = mqtt.connect(connectionURI, {
-    clientIdTwo,
-    clean: true,
-    connectTimeout: 4000,
-    username: 'emqx',
-    password: 'public',
-    reconnectPeriod: 1000
+const clientTwo = mqtt.connect("mqtt://localhost:22222", {
+  // clientId: `mqtt__${Math.random().toString(16).substring(2, 8)}`,
+  clientId: "",
+  clean: false,
+  reconnectPeriod: 100,
+  connectTimeout: 4000,
 });
 
+const topic = "mqtt/nodejs";
 
-const topicOne = 'room/device1';
-const topicTwo = 'room/device2' 
-
-clientOne.on('connect', () => {
-    console.log('connected from client one!');
-
-    clientOne.subscribe([topicTwo], () => {
-        console.log(`Client One Subscribe to topic: ${topicTwo}`);
-    });
-
-    clientOne.publish(topicOne, 'MESSAGE FROM TOPIC ONE', {qos: 2, retain: false}, (err) => {
-        console.log('already published!');
-        if (err) {
-            console.log(err);
-        }
-    });
-   
+// client one will be used to publish to the topic.
+clientOne.on("connect", () => {
+  console.log("[*] Client one is connected!");
+  clientOne.publish(topic, "MESSAGE", { qos: 0, retain: false }, (err) => {
+    if (err) {
+      return console.log(err);
+    }
+    console.log(`[*] Client one published a message to '${topic}' topic`);
+  });
 });
 
-clientTwo.on('connect', () => {
-    console.log('connected from client two!');
-        // subscribing to the messages being published from client one on topic from client two.
-        clientTwo.subscribe([topicOne], () => {
-            console.log('already subscribed!');
-            console.log(`Client Two Subscribe to topic: ${topicOne}`);
-            
-        });
+// client two will be used to subscribe to the topic.
+clientTwo.on("connect", () => {
+  console.log("[*] Client two is connected!");
+  clientTwo.subscribe([topic], { qos: 0 }, (err) => {
+    if (err) {
+      return console.log(err);
+    }
+    console.log(`[*] Client two subscribed to '${topic}' topic`);
+  });
+});
 
-        clientTwo.publish(topicTwo, 'MESSAGE FROM TOPIC TWO', {qos: 2, retain: false}, (err) => {
-            if (err) {
-                console.log(err);
-            }
-        })
-    
-})
-
-
-clientTwo.on('message', (topic, payload) => {
-    console.log(`Recieving messages that are being published from client one on ${topic}: ${payload.toString()}`);
-})
-
-clientOne.on("message", (topic, payload) => {
-    console.log(`Recieving messages that are being published from client two on ${topic}: ${payload.toString()}`);
-})
+// client two will receive the message when it comes.
+clientTwo.on("message", (topic, payload) => {
+  console.log(
+    `[*] Client two Received message from '${topic}': ${payload.toString()}`
+  );
+});
